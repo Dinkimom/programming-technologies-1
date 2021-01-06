@@ -22,9 +22,6 @@ class WeatherProvider:
         try:
             data = requests.get(url, params).json()
 
-            # for row in data['list']:
-            #     print(row['main'])
-
             return [{
                 'main': row['weather'][0]['main'],
                 'description': row['weather'][0]['description'],
@@ -38,26 +35,42 @@ class WeatherProvider:
             return e
 
 
-engine = create_engine('sqlite:///weather.sqlite3')
-metadata = MetaData()
-weather = Table(
-    'weather',
-    metadata,
-    Column('date', String),
-    Column('mint', Float),
-    Column('maxt', Float),
-    Column('location', String),
-    Column('humidity', Float),
-)
-metadata.create_all(engine)
+class DataBaseProvider:
+    def __init__(self, connection_string):
+        self.metadata = MetaData()
+        self.table = Table(
+            'weather',
+            self.metadata,
+            Column('date', String),
+            Column('mint', Float),
+            Column('maxt', Float),
+            Column('location', String),
+            Column('humidity', Float),
+        )
+        self.engine = create_engine(connection_string)
+        self.metadata.create_all(self.engine)
 
-c = engine.connect()
+    def insert_data(self, data):
+        try:
+            client = self.engine.connect()
+            client.execute(self.table.insert(), data)
+        except Exception as e:
+            return e
+
+    def select_data(self):
+        try:
+            client = self.engine.connect()
+            client.execute(select([self.table]))
+        except Exception as e:
+            return e
+
 
 provider = WeatherProvider('97fc4bb256b73c3617b684c1588bd57b')
+db_client = DataBaseProvider('sqlite:///weather.sqlite3')
 
-result = provider.get_data('Volgograd,Russia', 1)
+db_client.insert_data(provider.get_data('Volgograd,Russia', 1))
 
-print(result)
+print(db_client.select_data())
 
 # c.execute(weather.insert(), provider.get_data('Volgograd,Russia', '2020-09-20', '2020-09-29'))
 #
