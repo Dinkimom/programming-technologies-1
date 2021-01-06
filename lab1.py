@@ -7,28 +7,35 @@ class WeatherProvider:
     def __init__(self, key):
         self.key = key
 
-    def get_data(self, location, start_date, end_date):
-        url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/history'
+    def get_data(self, location, num_of_days):
+        url = 'https://api.openweathermap.org/data/2.5/forecast'
         params = {
-            'aggregateHours': 24,
-            'startDateTime': f'{start_date}T00:0:00',
-            'endDateTime': f'{end_date}T23:59:59',
-            'unitGroup': 'metric',
-            'location': location,
-            'key': self.key,
-            'contentType': 'json',
+            'q': location,
+            'appid': self.key,
+            'units': 'metric',
+            'cnt': num_of_days
         }
-        data = requests.get(url, params).json()
-        return [
-            {
-                'date': row['datetimeStr'][:10],
-                'mint': row['mint'],
-                'maxt': row['maxt'],
-                'location': 'Volgograd,Russia',
-                'humidity': row['humidity'],
-            }
-            for row in data['locations'][location]['values']
-        ]
+
+        if num_of_days < 1 | num_of_days > 17:
+            raise Exception('Invalid input. Number of days should be from 1 to 16')
+
+        try:
+            data = requests.get(url, params).json()
+
+            # for row in data['list']:
+            #     print(row['main'])
+
+            return [{
+                'main': row['weather'][0]['main'],
+                'description': row['weather'][0]['description'],
+                'temp': row['main']['temp'],
+                'feels_like': row['main']['feels_like'],
+                'temp_min': row['main']['temp_min'],
+                'temp_max': row['main']['temp_max'],
+                'pressure': row['main']['pressure'],
+            } for row in data['list']]
+        except Exception as e:
+            return e
 
 
 engine = create_engine('sqlite:///weather.sqlite3')
@@ -46,8 +53,13 @@ metadata.create_all(engine)
 
 c = engine.connect()
 
-provider = WeatherProvider('I3D60I88UB6KPSDAVGK38HNP5')
-c.execute(weather.insert(), provider.get_data('Volgograd,Russia', '2020-09-20', '2020-09-29'))
+provider = WeatherProvider('97fc4bb256b73c3617b684c1588bd57b')
 
-for row in c.execute(select([weather])):
-    print(row)
+result = provider.get_data('Volgograd,Russia', 1)
+
+print(result)
+
+# c.execute(weather.insert(), provider.get_data('Volgograd,Russia', '2020-09-20', '2020-09-29'))
+#
+# for row in c.execute(select([weather])):
+#     print(row)
