@@ -7,7 +7,7 @@ class WeatherProvider:
     def __init__(self, key):
         self.key = key
 
-    def get_data(self, location, num_of_days):
+    def fetch_data(self, location, num_of_days):
         url = 'https://api.openweathermap.org/data/2.5/forecast'
         params = {
             'q': location,
@@ -16,7 +16,7 @@ class WeatherProvider:
             'cnt': num_of_days
         }
 
-        if num_of_days < 1 | num_of_days > 17:
+        if num_of_days < 1 or num_of_days > 16:
             raise Exception('Invalid input. Number of days should be from 1 to 16')
 
         try:
@@ -41,16 +41,19 @@ class DataBaseProvider:
         self.table = Table(
             'weather',
             self.metadata,
-            Column('date', String),
-            Column('mint', Float),
-            Column('maxt', Float),
-            Column('location', String),
-            Column('humidity', Float),
+            Column('main', String),
+            Column('description', String),
+            Column('temp', Float),
+            Column('feels_like', Float),
+            Column('temp_min', Float),
+            Column('temp_max', Float),
+            Column('pressure', Float),
         )
         self.engine = create_engine(connection_string)
         self.metadata.create_all(self.engine)
 
     def insert_data(self, data):
+        print(data)
         try:
             client = self.engine.connect()
             client.execute(self.table.insert(), data)
@@ -60,7 +63,7 @@ class DataBaseProvider:
     def select_data(self):
         try:
             client = self.engine.connect()
-            client.execute(select([self.table]))
+            return client.execute(select([self.table]))
         except Exception as e:
             return e
 
@@ -68,11 +71,7 @@ class DataBaseProvider:
 provider = WeatherProvider('97fc4bb256b73c3617b684c1588bd57b')
 db_client = DataBaseProvider('sqlite:///weather.sqlite3')
 
-db_client.insert_data(provider.get_data('Volgograd,Russia', 1))
+db_client.insert_data(provider.fetch_data('Volgograd,Russia', 16))
 
-print(db_client.select_data())
-
-# c.execute(weather.insert(), provider.get_data('Volgograd,Russia', '2020-09-20', '2020-09-29'))
-#
-# for row in c.execute(select([weather])):
-#     print(row)
+for row in db_client.select_data():
+    print(row)
