@@ -1,7 +1,12 @@
 import requests
+from matplotlib import dates
 from sqlalchemy import create_engine, Table, Column, String, Float, MetaData
 from sqlalchemy.sql import select
+import datetime
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
+datetime_format = '%d-%m-%y %H:%m'
 
 class WeatherProvider:
     def __init__(self, key):
@@ -13,7 +18,8 @@ class WeatherProvider:
             'q': location,
             'appid': self.key,
             'units': 'metric',
-            'cnt': num_of_days
+            'cnt': num_of_days,
+            'lang': 'ru'
         }
 
         if num_of_days < 1 or num_of_days > 16:
@@ -23,6 +29,7 @@ class WeatherProvider:
             data = requests.get(url, params).json()
 
             return [{
+                'date': (datetime.datetime.now() + datetime.timedelta(seconds=row['dt'])).strftime(datetime_format),
                 'main': row['weather'][0]['main'],
                 'description': row['weather'][0]['description'],
                 'temp': row['main']['temp'],
@@ -41,6 +48,7 @@ class DataBaseProvider:
         self.table = Table(
             'weather',
             self.metadata,
+            Column('date', String),
             Column('main', String),
             Column('description', String),
             Column('temp', Float),
@@ -53,7 +61,6 @@ class DataBaseProvider:
         self.metadata.create_all(self.engine)
 
     def insert_data(self, data):
-        print(data)
         try:
             client = self.engine.connect()
             client.execute(self.table.insert(), data)
@@ -68,10 +75,50 @@ class DataBaseProvider:
             return e
 
 
+class Reporter:
+    def __init__(self):
+        self.labels = [
+            'Дата/Время',
+            'Тип',
+            'Описание',
+            'Температура',
+            'Ощущается как',
+            'Минималная температура',
+            'Максимальная температура',
+            'Давление'
+        ]
+
+    def get_report(self, data):
+        for row in data:
+            for index in range(len(self.labels)):
+                print(f'{self.labels[index]}: {row[index]}')
+            print('-' * 16)
+
+    def illustrate(self, data, param):
+        graphic_dates = []
+        y_axis = []
+
+        for row in data:
+            graphic_dates.append(row[0])
+            y_axis.append(row[param])
+
+        x_axis = [datetime.datetime.strptime(d, datetime_format).date() for d in graphic_dates]
+
+        ax = plt.gca()
+
+        formatter = mdates.DateFormatter(datetime_format)
+        ax.xaxis.set_major_formatter(formatter)
+        locator = mdates.DayLocator()
+        ax.xaxis.set_major_locator(locator)
+        plt.plot(x_axis, y_axis)
+        plt.show()
+
+
 provider = WeatherProvider('97fc4bb256b73c3617b684c1588bd57b')
 db_client = DataBaseProvider('sqlite:///weather.sqlite3')
 
 db_client.insert_data(provider.fetch_data('Volgograd,Russia', 16))
 
-for row in db_client.select_data():
-    print(row)
+reporter = Reporter()
+reporter.get_report(db_client.select_data())
+reporter.illustrate((db_client.select_data()), 3)
