@@ -94,25 +94,6 @@ class Reporter:
                 print(f'{self.labels[index]}: {row[index]}')
             print('-' * 16)
 
-    def illustrate(self, data, param):
-        graphic_dates = []
-        y_axis = []
-
-        for row in data:
-            graphic_dates.append(row[0])
-            y_axis.append(row[param])
-
-        x_axis = [datetime.datetime.strptime(d, datetime_format).date() for d in graphic_dates]
-
-        ax = plt.gca()
-
-        formatter = mdates.DateFormatter(datetime_format)
-        ax.xaxis.set_major_formatter(formatter)
-        locator = mdates.DayLocator()
-        ax.xaxis.set_major_locator(locator)
-        plt.plot(x_axis, y_axis)
-        plt.show()
-
 
 provider = WeatherProvider('97fc4bb256b73c3617b684c1588bd57b')
 db_client = DataBaseProvider('sqlite:///weather.sqlite3')
@@ -121,4 +102,3 @@ db_client.insert_data(provider.fetch_data('Volgograd,Russia', 16))
 
 reporter = Reporter()
 reporter.get_report(db_client.select_data())
-reporter.illustrate((db_client.select_data()), 3)
